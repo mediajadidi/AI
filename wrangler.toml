@@ -1,0 +1,64 @@
+# ═══════════════════════════════════════════════════════════════
+#  AJ AI — Cloudflare Worker config (v2.1)
+#  Deploy:  npx wrangler deploy
+# ═══════════════════════════════════════════════════════════════
+name = "aj-ai"
+main = "worker.js"
+compatibility_date = "2025-09-01"
+workers_dev = true
+
+# Workers AI (free plan: 10,000 neurons/day)
+[ai]
+binding = "AI"
+
+# 01:00 UTC  → full refresh (leagues, teams, table snapshots, digest)
+# every 4 h  → light refresh (today's key matches only)
+[triggers]
+crons = ["0 1 * * *", "0 */4 * * *"]
+
+# Free structured logs: blocked questions, tool errors, 👍/👎 feedback ("feedback" events)
+[observability]
+enabled = true
+
+# ───────── Non-secret settings ─────────
+# NOTE: values set here OVERRIDE the defaults inside worker.js.
+# If you also set MODEL / FALLBACK_MODEL in the Cloudflare dashboard, make them match these.
+[vars]
+MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+FALLBACK_MODEL = "@cf/meta/llama-4-scout-17b-16e-instruct"
+CLASSIFIER_MODEL = "@cf/meta/llama-3.1-8b-instruct-fast"
+DEFAULT_TZ = "Asia/Tehran"
+ALLOWED_ORIGINS = "https://aiajsports.netlify.app,https://ajsports.dpdns.org,https://social.ajsports.dpdns.org"
+RATE_LIMIT_PER_MIN = "20"
+MAX_TOOL_ROUNDS = "5"
+MAX_MESSAGE_CHARS = "800"
+
+# ── OPTIONAL stronger brain (any OpenAI-compatible provider: Gemini, OpenAI, Groq, OpenRouter…) ──
+# When set, it is tried FIRST and Workers AI is the automatic fallback.
+# Put the KEY as a secret (see below); the URL and model name are not secret.
+# LLM_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai"
+# LLM_MODEL = "<a current model name from your provider>"
+
+# ───────── SECRETS — do NOT put these in this file ─────────
+#   npx wrangler secret put APIFOOTBALL_KEY     (required)
+#   npx wrangler secret put TAVILY_API_KEY      (optional: deeper news search)
+#   npx wrangler secret put LLM_API_KEY         (optional: external brain)
+#   npx wrangler secret put ADMIN_TOKEN         (optional: manual refresh endpoint)
+# Dashboard: Workers → aj-ai → Settings → Variables and Secrets → Add → type "Secret".
+
+# ───────── KV — strongly recommended now ─────────
+# Without KV: every cold start re-downloads the league/team index (~10 API calls) and the
+# table-snapshot fallback + learned name aliases are disabled.
+# 1) npx wrangler kv namespace create AJ_KV
+# 2) paste the id below and remove the leading "#"
+# [[kv_namespaces]]
+# binding = "AJ_KV"
+# id = "PASTE_KV_NAMESPACE_ID_HERE"
+
+# ───────── OPTIONAL: native rate limiter (stronger than in-memory) ─────────
+# [[ratelimits]]
+# name = "LIMITER"
+# namespace_id = "1001"
+#   [ratelimits.simple]
+#   limit = 20
+#   period = 60
