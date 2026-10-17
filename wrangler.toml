@@ -1,0 +1,52 @@
+# ═══════════════════════════════════════════════════════════════
+#  AJ AI — Cloudflare Worker config
+#  Deploy:  npx wrangler deploy
+# ═══════════════════════════════════════════════════════════════
+name = "aj-ai"
+main = "worker.js"
+compatibility_date = "2025-09-01"
+workers_dev = true
+
+# Workers AI (free plan: 10,000 neurons/day)
+[ai]
+binding = "AI"
+
+# Daily knowledge refresh (01:00 UTC ≈ 04:30 Tehran)
+[triggers]
+crons = ["0 1 * * *"]
+
+# Free structured logs (blocked questions, tool errors, league-name misses)
+[observability]
+enabled = true
+
+# ───────── Non-secret settings (safe to keep here) ─────────
+[vars]
+MODEL = "@cf/meta/llama-4-scout-17b-16e-instruct"
+FALLBACK_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+CLASSIFIER_MODEL = "@cf/meta/llama-3.1-8b-instruct-fast"
+DEFAULT_TZ = "Asia/Tehran"
+ALLOWED_ORIGINS = "https://aiajsports.netlify.app,https://ajsports.dpdns.org,https://social.ajsports.dpdns.org"
+RATE_LIMIT_PER_MIN = "12"
+MAX_TOOL_ROUNDS = "4"
+MAX_MESSAGE_CHARS = "800"
+
+# ───────── SECRETS — do NOT put these in this file ─────────
+#   npx wrangler secret put APIFOOTBALL_KEY     (required)
+#   npx wrangler secret put TAVILY_API_KEY      (optional: news/transfers search)
+#   npx wrangler secret put ADMIN_TOKEN         (optional: manual refresh endpoint)
+# Dashboard alternative: Workers → aj-ai → Settings → Variables and Secrets → Add → type "Secret".
+
+# ───────── OPTIONAL (recommended): KV for daily knowledge ─────────
+# 1) npx wrangler kv namespace create AJ_KV
+# 2) paste the returned id below and remove the leading "#"
+# [[kv_namespaces]]
+# binding = "AJ_KV"
+# id = "PASTE_KV_NAMESPACE_ID_HERE"
+
+# ───────── OPTIONAL: native rate limiter (stronger than in-memory) ─────────
+# [[ratelimits]]
+# name = "LIMITER"
+# namespace_id = "1001"
+#   [ratelimits.simple]
+#   limit = 12
+#   period = 60
