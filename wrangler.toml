@@ -1,0 +1,74 @@
+# ═══════════════════════════════════════════════════════════════
+#  AJ AI — Cloudflare Worker config (v3.0)
+#  Deploy:  npx wrangler deploy
+# ═══════════════════════════════════════════════════════════════
+name = "aj-ai"
+main = "worker.js"
+compatibility_date = "2025-09-01"
+workers_dev = true
+
+# Workers AI (free plan: 10,000 neurons/day)
+[ai]
+binding = "AI"
+
+# 01:00 UTC  → full refresh (leagues, teams, table snapshots, digest)
+# every 4 h  → light refresh (today's key matches only)
+[triggers]
+crons = ["0 1 * * *", "0 */4 * * *"]
+
+# Free structured logs: blocked questions, tool errors, 👍/👎 feedback ("feedback" events)
+[observability]
+enabled = true
+
+# ───────── Non-secret settings ─────────
+# NOTE: values set here OVERRIDE the defaults inside worker.js.
+# If you also set MODEL / FALLBACK_MODEL in the Cloudflare dashboard, make them match these.
+[vars]
+# Cheap-in-neurons models (the old llama-3.3-70b cost ~6x more per answer).
+# If the dashboard model catalog shows a different exact name, change it here — a wrong name is skipped automatically.
+MODEL = "@cf/qwen/qwen3-30b-a3b-fp8"
+FALLBACK_MODEL = "@cf/zai-org/glm-4.7-flash"
+LAST_MODEL = "@cf/meta/llama-4-scout-17b-16e-instruct"
+CLASSIFIER_MODEL = "@cf/meta/llama-3.1-8b-instruct-fast"
+DEFAULT_TZ = "Asia/Tehran"
+ALLOWED_ORIGINS = "https://aiajsports.netlify.app,https://ajsports.dpdns.org,https://social.ajsports.dpdns.org"
+RATE_LIMIT_PER_MIN = "20"
+MAX_TOOL_ROUNDS = "3"
+MAX_MESSAGE_CHARS = "800"
+
+# ── OPTIONAL stronger brain (any OpenAI-compatible provider: Gemini, OpenAI, Groq, OpenRouter…) ──
+# When set, it is tried FIRST and Workers AI is the automatic fallback.
+# Put the KEY as a secret (see below); the URL and model name are not secret.
+# LLM_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai"
+# LLM_MODEL = "<a current model name from your provider>"
+# Optional second external brain (e.g. Groq) — same idea, key via secret LLM2_API_KEY:
+# LLM2_BASE_URL = "https://api.groq.com/openai/v1"
+# LLM2_MODEL = "<model name>"
+# (Free tiers of some providers may use your prompts for training — don't enable if that matters to you.)
+
+# ── Extra news feeds (publisher RSS), format  lang|url|Name  separated by ";" — added to the built-in ones ──
+# NEWS_FEEDS = "fa|https://example.ir/rss|Example Sports;fa|https://example2.ir/rss|Example 2"
+
+# ───────── SECRETS — do NOT put these in this file ─────────
+#   npx wrangler secret put APIFOOTBALL_KEY     (required)
+#   npx wrangler secret put TAVILY_API_KEY      (optional: deeper news search)
+#   npx wrangler secret put LLM_API_KEY         (optional: external brain)
+#   npx wrangler secret put ADMIN_TOKEN         (recommended: enables /api/diag?token=… and /api/admin/refresh)
+# Dashboard: Workers → aj-ai → Settings → Variables and Secrets → Add → type "Secret".
+
+# ───────── KV — strongly recommended now ─────────
+# Without KV: every cold start re-downloads the league/team index (~10 API calls) and the
+# table-snapshot fallback + learned name aliases are disabled.
+# 1) npx wrangler kv namespace create AJ_KV
+# 2) paste the id below and remove the leading "#"
+# [[kv_namespaces]]
+# binding = "AJ_KV"
+# id = "PASTE_KV_NAMESPACE_ID_HERE"
+
+# ───────── OPTIONAL: native rate limiter (stronger than in-memory) ─────────
+# [[ratelimits]]
+# name = "LIMITER"
+# namespace_id = "1001"
+#   [ratelimits.simple]
+#   limit = 20
+#   period = 60
