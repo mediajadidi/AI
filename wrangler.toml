@@ -2,7 +2,7 @@
 #  AJ AI — Cloudflare Worker config (v3.0)
 #  Deploy:  npx wrangler deploy
 # ═══════════════════════════════════════════════════════════════
-name = "aj-ai"
+name = 'ai'
 main = "worker.js"
 compatibility_date = "2025-09-01"
 workers_dev = true
